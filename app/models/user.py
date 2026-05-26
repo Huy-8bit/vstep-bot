@@ -23,6 +23,7 @@ class User(Base):
     proactive_frequency: Mapped[str] = mapped_column(String(20), default="normal", nullable=False)
     timezone: Mapped[str] = mapped_column(String(64), default="Asia/Ho_Chi_Minh", nullable=False)
     proactive_quiet_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    proactive_vocab_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     proactive_messages_sent_date: Mapped[str | None] = mapped_column(String(10), nullable=True)
     proactive_messages_sent_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     proactive_daily_reminder_date: Mapped[str | None] = mapped_column(String(10), nullable=True)

@@ -49,7 +49,7 @@ def create_scheduler(bot: Bot) -> AsyncIOScheduler:
     )
     scheduler.add_job(
         send_periodic_vocab,
-        trigger=CronTrigger(minute="*/30", timezone=ZoneInfo(settings.bot_timezone)),
+        trigger=CronTrigger(minute=0, timezone=ZoneInfo(settings.bot_timezone)),
         id="proactive:periodic-vocab",
         replace_existing=True,
         kwargs={"bot": bot},

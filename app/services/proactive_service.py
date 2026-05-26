@@ -23,16 +23,10 @@ logger = logging.getLogger(__name__)
 
 MAX_MESSAGES_PER_DAY = 3
 MIN_IDLE_BEFORE_PROACTIVE = timedelta(minutes=30)
-PERIODIC_VOCAB_INTERVAL_MINUTES = {
-    "low": 120,
-    "normal": 60,
-    "high": 30,
-}
-
-
 @dataclass
 class ProactivePayload:
     text: str
+    texts: list[str] | None = None
     reply_markup: InlineKeyboardMarkup | None = None
     parse_mode: str | None = "HTML"
 
@@ -215,17 +209,12 @@ def should_send_periodic_vocab(user: User, now_utc: datetime | None = None) -> b
     if quiet_until and quiet_until > now:
         return False
 
-    last_interaction = ensure_utc(user.last_interaction_at)
-    if last_interaction and now - last_interaction < MIN_IDLE_BEFORE_PROACTIVE:
+    local_now = to_user_local(now, user)
+    if local_now.hour < 7 or local_now.hour >= 23:
         return False
 
-    if current_daily_count(user, now) >= MAX_MESSAGES_PER_DAY:
-        return False
-
-    interval = timedelta(
-        minutes=PERIODIC_VOCAB_INTERVAL_MINUTES.get(user.proactive_frequency or "normal", 60)
-    )
-    last_sent = ensure_utc(user.last_proactive_sent_at)
+    interval = timedelta(minutes=60)
+    last_sent = ensure_utc(user.proactive_vocab_sent_at)
     if last_sent and now - last_sent < interval:
         return False
 
@@ -326,19 +315,26 @@ async def build_proactive_message(
         if not items:
             items = await get_random_items(session, limit=count)
             topic = "random"
-        vocab_text = "\n\n".join(
-            format_vocab_messages(
-                items,
-                title=f"📘 Vocab bite: {topic}",
-                chunk_size=3,
-            )
+        vocab_messages = format_vocab_messages(
+            items,
+            title=f"📘 Vocab bite: {topic}",
+            chunk_size=1,
         )
         return ProactivePayload(
             text=(
-                "⏱️ <b>VSTEP vocab vài phút</b>\n"
-                "Mình gửi nhẹ vài cụm, đọc lướt cũng được.\n\n"
-                f"{vocab_text}"
+                "⏱️ <b>VSTEP hourly vocab</b>\n"
+                f"Topic hôm nay: <b>{_html(topic)}</b>\n"
+                "Mình gửi nhẹ 1-3 cụm. Đọc lướt cũng được, miễn là não gặp lại từ mỗi giờ."
             ),
+            texts=[
+                (
+                    "⏱️ <b>VSTEP hourly vocab</b>\n"
+                    f"Topic hôm nay: <b>{_html(topic)}</b>\n"
+                    "Mình gửi nhẹ 1-3 cụm. Đọc lướt cũng được, miễn là não gặp lại từ mỗi giờ."
+                ),
+                *vocab_messages,
+                build_writing_bite(),
+            ],
             reply_markup=mini_study_keyboard(),
         )
 
@@ -349,6 +345,10 @@ async def build_proactive_message(
 
 
 def mark_proactive_sent(user: User, message_type: str, now_utc: datetime, local_date: str) -> None:
+    if message_type == "periodic_vocab":
+        user.proactive_vocab_sent_at = now_utc
+        return
+
     if user.proactive_messages_sent_date != local_date:
         user.proactive_messages_sent_date = local_date
         user.proactive_messages_sent_count = 0
@@ -422,13 +422,15 @@ async def quiet_user_until_tomorrow(session: AsyncSession, user: User) -> None:
 
 
 async def _send_payload(bot: Bot, user: User, payload: ProactivePayload) -> bool:
+    parts = payload.texts or [payload.text]
     try:
-        await bot.send_message(
-            chat_id=user.telegram_id,
-            text=payload.text[:4000],
-            reply_markup=payload.reply_markup,
-            parse_mode=payload.parse_mode,
-        )
+        for index, part in enumerate(parts):
+            await bot.send_message(
+                chat_id=user.telegram_id,
+                text=part[:4000],
+                reply_markup=payload.reply_markup if index == len(parts) - 1 else None,
+                parse_mode=payload.parse_mode,
+            )
         return True
     except (TelegramForbiddenError, TelegramBadRequest):
         logger.info("Cannot send proactive message to telegram_id=%s", user.telegram_id)
@@ -443,4 +445,45 @@ def _html(value: str) -> str:
         value.replace("&", "&amp;")
         .replace("<", "&lt;")
         .replace(">", "&gt;")
+    )
+
+
+def build_writing_bite() -> str:
+    if random.choice(["task1", "task2"]) == "task1":
+        return "\n".join(
+            [
+                "✍️ <b>Writing bite - Task 1 letter</b>",
+                "",
+                "<b>Prompt mini:</b>",
+                "Write a letter to apologize for missing a class.",
+                "",
+                "<b>Khung 3 đoạn:</b>",
+                "• Đoạn 1: nói lý do viết thư và xin lỗi",
+                "• Đoạn 2: giải thích tình huống",
+                "• Đoạn 3: đề xuất cách bù lại và kết thúc lịch sự",
+                "",
+                "<b>Sample:</b>",
+                "<i>I am writing to apologize for missing your English class yesterday. "
+                "I had a sudden health problem, so I could not inform you in advance. "
+                "I will review the lesson carefully and ask my classmates for the notes.</i>",
+            ]
+        )
+
+    return "\n".join(
+        [
+            "📝 <b>Writing bite - Task 2 essay</b>",
+            "",
+            "<b>Topic mini:</b>",
+            "Online learning is becoming more popular.",
+            "",
+            "<b>Ý triển khai:</b>",
+            "• Main idea: học online linh hoạt hơn",
+            "• Support: tiết kiệm thời gian đi lại",
+            "• Example: người đi làm vẫn có thể học buổi tối",
+            "",
+            "<b>Sample body paragraph:</b>",
+            "<i>One clear advantage of online learning is its flexibility. "
+            "Students can study at a time and place that suits them, which is especially useful for people with busy schedules. "
+            "For example, working adults can take evening courses without travelling to a classroom.</i>",
+        ]
     )

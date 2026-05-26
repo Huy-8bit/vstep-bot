@@ -187,7 +187,7 @@ Tắt nhắc trong ngày:
 Các loại tin nhắn chủ động:
 
 - Daily reminder đúng giờ `reminder_time`.
-- Vocab bite mỗi 30 phút scheduler tick: gửi 1-3 cụm theo một topic, tùy `frequency`, vẫn bị giới hạn chống spam trong ngày.
+- Hourly vocab: mỗi 1 tiếng trong khung 07:00-23:00 gửi 1-3 cụm theo một topic, dùng đúng format vocabulary hiện tại và kèm một writing bite ngắn về Task 1 letter hoặc Task 2 essay.
 - Check-in nếu user không tương tác 24h, 48h, 72h.
 - Morning vocabulary lúc 08:00 với frequency `normal` hoặc `high`.
 - Night review lúc 21:30.
@@ -200,11 +200,12 @@ Chống spam:
 - Không gửi nếu user vừa tương tác trong 30 phút.
 - Nút `❌ Để sau` sẽ snooze vài giờ.
 - Frequency `low` nhắc ít hơn.
+- Hourly vocab không bị giới hạn 3 tin/ngày; nó dùng bộ đếm riêng để có thể gửi đều mỗi giờ. `/quiet` và nút `❌ Để sau` vẫn chặn hourly vocab.
 
 Scheduler nằm ở `app/scheduler.py`, dùng APScheduler với 4 job:
 
 - every minute: check daily reminders theo `reminder_time`.
-- every 30 minutes: gửi 1-3 vocabulary phrases theo topic nếu đủ điều kiện chống spam.
+- every hour: gửi 1-3 vocabulary phrases theo topic + một writing bite ngắn nếu đủ điều kiện.
 - every 3 hours: inactive user check-ins.
 - 08:00: morning vocabulary.
 - 21:30: night review.

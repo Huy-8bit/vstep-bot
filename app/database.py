@@ -97,6 +97,7 @@ def _ensure_user_columns(sync_conn) -> None:
         "proactive_frequency": f"{varchar_20} DEFAULT 'normal' NOT NULL",
         "timezone": f"{varchar_64} DEFAULT 'Asia/Ho_Chi_Minh' NOT NULL",
         "proactive_quiet_until": timestamp,
+        "proactive_vocab_sent_at": timestamp,
         "proactive_messages_sent_date": varchar_10,
         "proactive_messages_sent_count": integer_zero,
         "proactive_daily_reminder_date": varchar_10,
