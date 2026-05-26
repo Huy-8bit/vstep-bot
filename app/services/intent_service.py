@@ -41,7 +41,22 @@ class IntentResult:
 
 
 KEYWORDS: dict[str, list[str]] = {
-    "vocab_request": ["học từ", "từ vựng", "vocab", "phrase", "cụm từ", "học topic"],
+    "vocab_request": [
+        "học từ",
+        "từ vựng",
+        "vocab",
+        "phrase",
+        "cụm từ",
+        "học topic",
+        "từ hữu dụng",
+        "từ hay",
+        "cụm hữu dụng",
+        "cụm hay",
+        "một số từ",
+        "một số cụm",
+        "useful words",
+        "useful phrases",
+    ],
     "quiz_request": ["quiz", "kiểm tra", "test tôi", "đố tôi", "làm bài nhanh"],
     "task1_request": ["task 1", "task1", "viết thư", "email", "letter", "complaint", "apology"],
     "task2_request": ["task 2", "task2", "essay", "luận", "bài luận", "agree disagree"],
@@ -82,6 +97,9 @@ def detect_intent_rule_based(text: str) -> IntentResult:
     extracted_text = extract_after_marker(raw)
     topic = extract_topic(lower)
     days_left = extract_days_left(lower)
+
+    if _looks_like_useful_vocab_for_writing(lower):
+        return IntentResult("vocab_request", 0.92, extracted_text=raw, topic=topic)
 
     if "mai" in lower and "thi" in lower:
         return IntentResult("study_plan", 0.9, topic=topic, days_left=1)
@@ -212,6 +230,23 @@ def extract_topic(lower_text: str) -> str:
         if keyword in lower_text and topic in TOPICS:
             return topic
     return ""
+
+
+def _looks_like_useful_vocab_for_writing(lower_text: str) -> bool:
+    request_markers = [
+        "từ hữu dụng",
+        "từ hay",
+        "cụm hữu dụng",
+        "cụm hay",
+        "một số từ",
+        "một số cụm",
+        "useful words",
+        "useful phrases",
+    ]
+    writing_markers = ["essay", "easy", "viết bài", "viết luận", "writing", "task 2", "dùng cho viết"]
+    return any(marker in lower_text for marker in request_markers) and (
+        any(marker in lower_text for marker in writing_markers) or "nói về" in lower_text
+    )
 
 
 def extract_task_type(lower_text: str) -> str:

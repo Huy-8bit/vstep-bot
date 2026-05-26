@@ -21,6 +21,7 @@ from app.services.conversation_service import (
     set_conversation_state,
 )
 from app.services.explanation_service import explain_phrase, explain_sentence
+from app.services.essay_phrase_service import build_essay_phrase_pack, is_useful_phrase_request
 from app.services.intent_service import (
     IntentResult,
     detect_intent,
@@ -195,6 +196,9 @@ async def route_intent(
     intent: IntentResult,
 ) -> None:
     if intent.intent == "vocab_request":
+        if is_useful_phrase_request(message.text or ""):
+            await send_long_message(message, build_essay_phrase_pack(message.text or ""), parse_mode="HTML")
+            return
         await send_vocab_by_topic_or_random(message, session, topic=intent.topic)
         return
 
